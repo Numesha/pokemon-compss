@@ -1,7 +1,7 @@
 import { buildIslandSleepTypeTodoGroups } from "../services/todoGroupService.js";
 import { escapeHtml } from "../utils/html.js";
 
-export function renderHomePage({ appVersion, state, view, actions }) {
+export function renderHomePage({ state, view, actions }) {
   const todoGroups = buildIslandSleepTypeTodoGroups(state.todos);
 
   view.innerHTML = `
@@ -11,24 +11,6 @@ export function renderHomePage({ appVersion, state, view, actions }) {
         <p>厳選候補のToDoを島と睡眠タイプごとに確認します。</p>
       </div>
       <span class="badge">${todoGroups.length}グループ</span>
-    </section>
-    <section class="grid">
-      <article class="panel">
-        <h3>マスターデータ</h3>
-        <div class="detail-grid">
-          <div class="detail-item"><span>バージョン</span>${escapeHtml(state.master.meta?.masterVersion ?? "不明")}</div>
-          <div class="detail-item"><span>ポケモン数</span>${state.mapper.table("tblPokemon").length}件</div>
-          <div class="detail-item"><span>生成元</span>${escapeHtml(state.master.meta?.sourceWorkbook ?? "不明")}</div>
-        </div>
-      </article>
-      <article class="panel">
-        <h3>ユーザーデータ</h3>
-        <div class="detail-grid">
-          <div class="detail-item"><span>登録個体</span>${state.userPokemon.length}匹</div>
-          <div class="detail-item"><span>ToDo</span>${state.todos.length}件</div>
-          <div class="detail-item"><span>アプリ</span>Ver.${escapeHtml(appVersion)}</div>
-        </div>
-      </article>
     </section>
     <section class="panel">
       <div class="section-head">

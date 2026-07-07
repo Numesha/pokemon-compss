@@ -119,5 +119,6 @@ async function handleGoalSave(event, kind, items, actions) {
   await actions.refreshGoals();
   actions.recalculateRoleProgress();
   await actions.regenerateTodos();
+  actions.notify("保存しました");
   actions.render();
 }

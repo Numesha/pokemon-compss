@@ -13,6 +13,29 @@ export function renderDexPage({ state, view, actions }) {
   const selected = state.selectedDexId ? mapper.pokemonById(state.selectedDexId) : filtered[0];
   if (selected) state.selectedDexId = mapper.pokemonId(selected);
 
+  if (state.dexDetailOpen && selected) {
+    view.innerHTML = `
+      <section class="page-head">
+        <div>
+          <h2>図鑑詳細</h2>
+          <p>種族情報、厳選状態、種族役割候補を確認・編集します。</p>
+        </div>
+        <button class="secondary-button" type="button" data-back-to-dex-list>一覧へ戻る</button>
+      </section>
+      ${renderDexDetail(selected, state)}
+    `;
+    document.querySelector("[data-back-to-dex-list]")?.addEventListener("click", () => {
+      state.dexDetailOpen = false;
+      renderDexPage({ state, view, actions });
+    });
+    document.querySelectorAll("[data-user-pokemon-id]").forEach((button) => {
+      button.addEventListener("click", () => actions.openUserPokemon(button.dataset.userPokemonId));
+    });
+    document.querySelector("#speciesSettingForm")?.addEventListener("submit", (event) => handleSpeciesSettingSave(event, state, view, actions));
+    document.querySelector("#speciesRoleCandidateForm")?.addEventListener("submit", (event) => handleSpeciesRoleCandidateSave(event, state, view, actions));
+    return;
+  }
+
   view.innerHTML = `
     <section class="page-head">
       <div>
@@ -38,13 +61,8 @@ export function renderDexPage({ state, view, actions }) {
         </select>
       </label>
     </section>
-    <section class="split">
-      <div class="grid">
-        ${filtered.length ? filtered.map((row) => renderDexCard(row, state)).join("") : `<div class="empty-state">条件に一致するデータがありません</div>`}
-      </div>
-      <aside>
-        ${selected ? renderDexDetail(selected, state) : `<div class="empty-state">表示できるポケモンがありません</div>`}
-      </aside>
+    <section class="grid">
+      ${filtered.length ? filtered.map((row) => renderDexCard(row, state)).join("") : `<div class="empty-state">条件に一致するデータがありません</div>`}
     </section>
   `;
 
@@ -63,11 +81,10 @@ export function renderDexPage({ state, view, actions }) {
   document.querySelectorAll("[data-dex-id]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedDexId = button.dataset.dexId;
+      state.dexDetailOpen = true;
       renderDexPage({ state, view, actions });
     });
   });
-  document.querySelector("#speciesSettingForm")?.addEventListener("submit", (event) => handleSpeciesSettingSave(event, state, view, actions));
-  document.querySelector("#speciesRoleCandidateForm")?.addEventListener("submit", (event) => handleSpeciesRoleCandidateSave(event, state, view, actions));
 }
 
 function matchesDexFilters(row, state) {
@@ -101,7 +118,7 @@ function renderDexCard(row, state) {
   return `
     <button class="card" data-dex-id="${escapeHtml(vm.pokemonId)}" type="button" aria-pressed="${selected}">
       <div class="card-title">
-        <strong>${escapeHtml(vm.name)}</strong>
+        <strong>${escapeHtml(vm.displayName)}</strong>
         <span class="chip">No.${escapeHtml(vm.dexNo)}</span>
       </div>
       <ul class="meta-list">
@@ -121,7 +138,7 @@ function renderDexDetail(row, state) {
   const islands = mapper.table("tblPokemonIsland").filter((item) => String(item["内部ID"] ?? item.pokemonId) === vm.pokemonId);
   return `
     <section class="panel">
-      <h3>${escapeHtml(vm.name)}</h3>
+      <h3>${escapeHtml(vm.displayName)}</h3>
       <div class="detail-grid">
         <div class="detail-item"><span>図鑑No.</span>${escapeHtml(vm.dexNo)}</div>
         <div class="detail-item"><span>得意</span>${escapeHtml(vm.specialtyName)}</div>
@@ -234,6 +251,7 @@ async function handleSpeciesSettingSave(event, state, view, actions) {
   await actions.refreshSpeciesSettings();
   actions.rebuildTodoCandidates();
   await actions.regenerateTodos();
+  actions.notify("保存しました");
   renderDexPage({ state, view, actions });
 }
 
@@ -246,6 +264,7 @@ async function handleSpeciesRoleCandidateSave(event, state, view, actions) {
   await actions.refreshSpeciesRoleCandidates();
   actions.rebuildTodoCandidates();
   await actions.regenerateTodos();
+  actions.notify("保存しました");
   renderDexPage({ state, view, actions });
 }
 

@@ -60,6 +60,12 @@ export function createMasterMapper(master) {
     return String(getValue(row, "name", "不明データ"));
   }
 
+  function pokemonDisplayName(row) {
+    const name = pokemonName(row);
+    const variation = lookupName("tblVariation", getValue(row, "variationId"), "通常");
+    return `${name} - ${variation || "通常"}`;
+  }
+
   function pokemonById(id) {
     return table("tblPokemon").find((row) => pokemonId(row) === String(id));
   }
@@ -68,6 +74,19 @@ export function createMasterMapper(master) {
     const main = lookupName("tblMainSkill", id, "");
     if (main) return main;
     return lookupName("tblMainSkillVariation", id, "未設定");
+  }
+
+  function natureEffect(natureId) {
+    if (!natureId || natureId === "NONE") {
+      return { upName: "補正なし", downName: "補正なし" };
+    }
+    const map = table("tblNatureEffectMap").find((row) => String(row.NatureID ?? row.natureId) === String(natureId));
+    const upId = map?.UpEffectID ?? "NONE";
+    const downId = map?.DownEffectID ?? "NONE";
+    return {
+      upName: lookupName("tblNatureEffect", upId, "補正なし"),
+      downName: lookupName("tblNatureEffect", downId, "補正なし"),
+    };
   }
 
   function createPokemonViewModel(userPokemon, context) {
@@ -85,8 +104,16 @@ export function createMasterMapper(master) {
       ingredientLv30Name: lookupName("tblIngredient", userPokemon.ingredientLv30, "未設定"),
       ingredientLv60Name: lookupName("tblIngredient", userPokemon.ingredientLv60, "未設定"),
       natureName: lookupName("tblNature", userPokemon.natureId, "未設定"),
+      natureEffect: natureEffect(userPokemon.natureId),
       memo: userPokemon.memo || "",
       mainSkillLevel: userPokemon.mainSkillLevel,
+      subSkills: {
+        level10: userPokemon.subSkillLv10 || "NONE",
+        level25: userPokemon.subSkillLv25 || "NONE",
+        level50: userPokemon.subSkillLv50 || "NONE",
+        level70: userPokemon.subSkillLv70 || "NONE",
+        level80: userPokemon.subSkillLv80 || "NONE",
+      },
       roleSummary: buildRoleSummary(userPokemon.userPokemonId, context.roleAssignments, context.mapper),
     };
   }
@@ -99,6 +126,7 @@ export function createMasterMapper(master) {
       pokemonId: id,
       row,
       name: pokemonName(row),
+      displayName: pokemonDisplayName(row),
       dexNo: getValue(row, "dexNo", "-"),
       specialtyName: lookupName("tblSpecialty", getValue(row, "specialtyId"), "未設定"),
       typeName: lookupName("tblType", getValue(row, "typeId"), "未設定"),
@@ -133,7 +161,9 @@ export function createMasterMapper(master) {
     getValue,
     lookupName,
     masterOptionValue,
+    natureEffect,
     pokemonById,
+    pokemonDisplayName,
     pokemonId,
     pokemonName,
     rowId,

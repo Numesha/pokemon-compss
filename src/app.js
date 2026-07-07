@@ -21,10 +21,11 @@ import { renderTodoPage } from "./pages/TodoPage.js";
 import { renderRolePage } from "./pages/RolePage.js";
 import { renderUnsetListPage } from "./pages/UnsetListPage.js";
 
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.0.1";
 
 const state = {
   route: "home",
+  appVersion: APP_VERSION,
   master: null,
   mapper: null,
   userPokemon: [],
@@ -42,7 +43,9 @@ const state = {
   todos: getEmptyTodos(),
   selectedIslandSleepType: null,
   selectedDexId: null,
+  dexDetailOpen: false,
   selectedUserPokemonId: null,
+  pokemonDetailOpen: false,
   filters: {
     dexQuery: "",
     dexSpecialty: "ALL",
@@ -55,6 +58,7 @@ const state = {
 
 const view = document.querySelector("#view");
 const masterStatus = document.querySelector("#masterStatus");
+const toast = document.querySelector("#toast");
 
 const actions = {
   setRoute,
@@ -71,11 +75,14 @@ const actions = {
   importUserData,
   resetUserData,
   setNotice,
+  notify,
   recalculateRoleProgress,
   rebuildTodoCandidates,
   regenerateTodos,
   render,
 };
+
+let toastTimer = null;
 
 function setNotice(message, type = "info") {
   state.notice = message ? { message, type } : null;
@@ -91,6 +98,16 @@ function setRoute(route) {
   render();
 }
 
+function notify(message) {
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.remove("hidden");
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    toast.classList.add("hidden");
+  }, 2200);
+}
+
 function openIslandSleepType(islandSleepType) {
   state.selectedIslandSleepType = islandSleepType;
   setRoute("island");
@@ -98,11 +115,13 @@ function openIslandSleepType(islandSleepType) {
 
 function openDexPokemon(pokemonId) {
   state.selectedDexId = String(pokemonId);
+  state.dexDetailOpen = true;
   setRoute("dex");
 }
 
 function openUserPokemon(userPokemonId) {
   state.selectedUserPokemonId = userPokemonId;
+  state.pokemonDetailOpen = true;
   setRoute("pokemon");
 }
 

@@ -47,8 +47,20 @@ export function renderSettingsPage({ state, view, actions }) {
       <h3>マスターデータ</h3>
       <div class="detail-grid">
         <div class="detail-item"><span>バージョン</span>${escapeHtml(state.master.meta?.masterVersion ?? "不明")}</div>
+        <div class="detail-item"><span>ポケモン数</span>${state.mapper.table("tblPokemon").length}件</div>
+        <div class="detail-item"><span>生成元</span>${escapeHtml(state.master.meta?.sourceWorkbook ?? "不明")}</div>
         <div class="detail-item"><span>更新日時</span>${escapeHtml(state.master.meta?.masterUpdatedAt ?? "不明")}</div>
         <div class="detail-item"><span>生成日時</span>${escapeHtml(state.master.meta?.generatedAt ?? "不明")}</div>
+        <div class="detail-item"><span>アプリ</span>Ver.${escapeHtml(state.appVersion ?? "1.0.1")}</div>
+      </div>
+    </section>
+    <section class="panel">
+      <h3>ユーザーデータ</h3>
+      <div class="detail-grid">
+        <div class="detail-item"><span>登録個体</span>${state.userPokemon.length}匹</div>
+        <div class="detail-item"><span>厳選設定</span>${state.speciesSettings.length}件</div>
+        <div class="detail-item"><span>候補種族</span>${state.speciesRoleCandidates.length}件</div>
+        <div class="detail-item"><span>ToDo</span>${state.todos.length}件</div>
       </div>
     </section>
     <section class="panel">
@@ -148,5 +160,6 @@ async function handleGoalSave(event, sampleGoals, actions) {
   await actions.refreshGoals();
   actions.recalculateRoleProgress();
   await actions.regenerateTodos();
+  actions.notify("保存しました");
   actions.render();
 }

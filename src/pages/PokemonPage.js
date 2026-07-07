@@ -16,6 +16,12 @@ export function renderPokemonPage({ state, view, actions }) {
     : filtered[0];
   if (selected) state.selectedUserPokemonId = selected.userPokemonId;
 
+  if (state.pokemonDetailOpen && selected) {
+    view.innerHTML = renderDetailPage(selected, state);
+    bindDetailEvents(state, actions);
+    return;
+  }
+
   view.innerHTML = `
     <section class="page-head">
       <div>
@@ -44,9 +50,6 @@ export function renderPokemonPage({ state, view, actions }) {
       <div class="grid pokemon-grid">
         ${filtered.length ? filtered.map((userPokemon) => renderUserPokemonCard(userPokemon, state)).join("") : `<div class="empty-state">条件に一致するデータがありません</div>`}
       </div>
-      <aside>
-        ${selected ? renderUserPokemonDetail(selected, state) : `<div class="empty-state">登録個体がありません</div>`}
-      </aside>
     </section>
   `;
 
@@ -63,14 +66,13 @@ export function renderPokemonPage({ state, view, actions }) {
   });
   document.querySelector("#registerForm").addEventListener("submit", (event) => handleRegister(event, state, actions));
   document.querySelector("#registerSpecies").addEventListener("change", () => fillSpeciesDefaults(state));
-  document.querySelector("#roleForm")?.addEventListener("submit", (event) => handleRoleSave(event, state, actions));
   document.querySelectorAll("[data-user-pokemon-id]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedUserPokemonId = button.dataset.userPokemonId;
+      state.pokemonDetailOpen = true;
       renderPokemonPage({ state, view, actions });
     });
   });
-  document.querySelector("#deleteSelected")?.addEventListener("click", () => handleDeleteSelected(state, actions));
 }
 
 function renderRegisterForm(state) {
@@ -84,7 +86,7 @@ function renderRegisterForm(state) {
     <form id="registerForm" class="form-grid">
       <label>種族
         <select id="registerSpecies" class="select" name="pokemonId" required>
-          ${pokemonRows.map((row) => option(mapper.pokemonId(row), `${mapper.pokemonName(row)} / No.${mapper.getValue(row, "dexNo", "-")}`, first ? mapper.pokemonId(first) : "")).join("")}
+          ${pokemonRows.map((row) => option(mapper.pokemonId(row), `${mapper.pokemonDisplayName(row)} / No.${mapper.getValue(row, "dexNo", "-")}`, first ? mapper.pokemonId(first) : "")).join("")}
         </select>
       </label>
       <label>ニックネーム
@@ -116,6 +118,7 @@ function renderRegisterForm(state) {
           ${mapper.table("tblNature").map((row) => option(mapper.masterOptionValue(row), row.名前 ?? mapper.rowId(row), "NONE")).join("")}
         </select>
       </label>
+      ${renderSubSkillFields(state, {})}
       <label>お気に入り
         <select class="select" name="isFavorite">
           ${option("false", "いいえ", "false")}
@@ -147,12 +150,54 @@ function fillSpeciesDefaults(state) {
   document.querySelector("#ingredientLv60").innerHTML = ingredientOptions(state, mapper.getValue(selected, "ingredientC"));
 }
 
-async function handleRegister(event, state, actions) {
-  event.preventDefault();
-  const data = new FormData(event.target);
+function fillEditSpeciesDefaults(state) {
+  const pokemonId = document.querySelector("#editSpecies")?.value;
+  const mapper = state.mapper;
+  const selected = mapper.pokemonById(pokemonId);
+  if (!selected) return;
+  document.querySelector("#editIngredientLv1").innerHTML = pokemonIngredientOptions(state, pokemonId, mapper.getValue(selected, "ingredientA"), "ingredientA");
+  document.querySelector("#editIngredientLv30").innerHTML = pokemonIngredientOptions(state, pokemonId, mapper.getValue(selected, "ingredientB"), "ingredientB");
+  document.querySelector("#editIngredientLv60").innerHTML = pokemonIngredientOptions(state, pokemonId, mapper.getValue(selected, "ingredientC"), "ingredientC");
+}
+
+function renderSubSkillFields(state, userPokemon) {
+  const selected = {
+    subSkillLv10: userPokemon.subSkillLv10 || "NONE",
+    subSkillLv25: userPokemon.subSkillLv25 || "NONE",
+    subSkillLv50: userPokemon.subSkillLv50 || "NONE",
+    subSkillLv70: userPokemon.subSkillLv70 || "NONE",
+    subSkillLv80: userPokemon.subSkillLv80 || "NONE",
+  };
+  return `
+    <label>サブスキル Lv10
+      <select class="select" name="subSkillLv10">${subSkillOptions(state, selected.subSkillLv10)}</select>
+    </label>
+    <label>サブスキル Lv25
+      <select class="select" name="subSkillLv25">${subSkillOptions(state, selected.subSkillLv25)}</select>
+    </label>
+    <label>サブスキル Lv50
+      <select class="select" name="subSkillLv50">${subSkillOptions(state, selected.subSkillLv50)}</select>
+    </label>
+    <label>サブスキル Lv70
+      <select class="select" name="subSkillLv70">${subSkillOptions(state, selected.subSkillLv70)}</select>
+    </label>
+    <label>サブスキル Lv80
+      <select class="select" name="subSkillLv80">${subSkillOptions(state, selected.subSkillLv80)}</select>
+    </label>
+  `;
+}
+
+function subSkillOptions(state, selectedId) {
+  const mapper = state.mapper;
+  const base = option("NONE", "未設定", selectedId || "NONE");
+  return base + mapper.table("tblSubSkill").map((row) => option(mapper.rowId(row), row.名前 ?? mapper.rowId(row), selectedId)).join("");
+}
+
+function userPokemonFromForm(data, existing, state) {
   const now = new Date().toISOString();
-  const item = {
-    userPokemonId: `up_${crypto.randomUUID()}`,
+  return {
+    ...(existing || {}),
+    userPokemonId: existing?.userPokemonId ?? `up_${crypto.randomUUID()}`,
     pokemonId: String(data.get("pokemonId")),
     nickname: String(data.get("nickname") || "").trim(),
     level: Number(data.get("level") || 1),
@@ -163,15 +208,40 @@ async function handleRegister(event, state, actions) {
     ingredientLv60: String(data.get("ingredientLv60") || "NONE"),
     mainSkillLevel: Number(data.get("mainSkillLevel") || 1),
     natureId: String(data.get("natureId") || "NONE"),
+    subSkillLv10: String(data.get("subSkillLv10") || "NONE"),
+    subSkillLv25: String(data.get("subSkillLv25") || "NONE"),
+    subSkillLv50: String(data.get("subSkillLv50") || "NONE"),
+    subSkillLv70: String(data.get("subSkillLv70") || "NONE"),
+    subSkillLv80: String(data.get("subSkillLv80") || "NONE"),
     memo: String(data.get("memo") || ""),
-    createdAt: now,
+    createdAt: existing?.createdAt ?? now,
     updatedAt: now,
-    sortOrder: state.userPokemon.length + 1,
+    sortOrder: existing?.sortOrder ?? state.userPokemon.length + 1,
   };
+}
+
+async function handleRegister(event, state, actions) {
+  event.preventDefault();
+  const data = new FormData(event.target);
+  const item = userPokemonFromForm(data, null, state);
 
   await saveUserPokemon(item);
   await actions.refreshUserPokemon();
   state.selectedUserPokemonId = item.userPokemonId;
+  state.pokemonDetailOpen = true;
+  actions.notify("登録しました");
+  renderPokemonPage({ state, view: document.querySelector("#view"), actions });
+}
+
+async function handleEditPokemon(event, state, actions) {
+  event.preventDefault();
+  const selected = state.userPokemon.find((item) => item.userPokemonId === state.selectedUserPokemonId);
+  if (!selected) return;
+  const item = userPokemonFromForm(new FormData(event.target), selected, state);
+  await saveUserPokemon(item);
+  await actions.refreshUserPokemon();
+  state.selectedUserPokemonId = item.userPokemonId;
+  actions.notify("保存しました");
   renderPokemonPage({ state, view: document.querySelector("#view"), actions });
 }
 
@@ -250,6 +320,10 @@ function renderUserPokemonDetail(userPokemon, state) {
       ${renderRoleForm(userPokemon, state)}
     </section>
     <section class="panel">
+      <h3>登録内容編集</h3>
+      ${renderEditForm(userPokemon, state)}
+    </section>
+    <section class="panel">
       <h3>基本情報</h3>
       <div class="detail-grid">
         <div class="detail-item"><span>得意</span>${escapeHtml(mapper.lookupName("tblSpecialty", mapper.getValue(species, "specialtyId"), "未設定"))}</div>
@@ -274,8 +348,20 @@ function renderUserPokemonDetail(userPokemon, state) {
       <h3>性格・メモ</h3>
       <div class="detail-grid">
         <div class="detail-item"><span>性格</span>${escapeHtml(vm.natureName)}</div>
+        <div class="detail-item"><span>上昇補正</span>${escapeHtml(vm.natureEffect.upName)}${vm.natureEffect.upName !== "補正なし" ? "↑" : ""}</div>
+        <div class="detail-item"><span>下降補正</span>${escapeHtml(vm.natureEffect.downName)}${vm.natureEffect.downName !== "補正なし" ? "↓" : ""}</div>
         <div class="detail-item"><span>メモ</span>${escapeHtml(vm.memo || "なし")}</div>
       </div>
+    </section>
+    <section class="panel">
+      <h3>サブスキル</h3>
+      <ul class="meta-list">
+        ${renderSubSkillListItem("Lv10", vm.subSkills.level10, state)}
+        ${renderSubSkillListItem("Lv25", vm.subSkills.level25, state)}
+        ${renderSubSkillListItem("Lv50", vm.subSkills.level50, state)}
+        ${renderSubSkillListItem("Lv70", vm.subSkills.level70, state)}
+        ${renderSubSkillListItem("Lv80", vm.subSkills.level80, state)}
+      </ul>
       <div class="button-row" style="margin-top: 12px;">
         <button id="deleteSelected" class="danger-button" type="button">削除</button>
       </div>
@@ -283,8 +369,108 @@ function renderUserPokemonDetail(userPokemon, state) {
   `;
 }
 
+function renderSubSkillListItem(label, subSkillId, state) {
+  return `<li>${escapeHtml(label)} ${escapeHtml(state.mapper.lookupName("tblSubSkill", subSkillId, "未設定"))}</li>`;
+}
+
+function renderEditForm(userPokemon, state) {
+  const mapper = state.mapper;
+  const pokemonRows = mapper
+    .table("tblPokemon")
+    .slice()
+    .sort((a, b) => Number(mapper.getValue(a, "dexNo", 0)) - Number(mapper.getValue(b, "dexNo", 0)));
+  return `
+    <form id="editPokemonForm" class="form-grid">
+      <label>種族
+        <select id="editSpecies" class="select" name="pokemonId" required>
+          ${pokemonRows.map((row) => option(mapper.pokemonId(row), `${mapper.pokemonDisplayName(row)} / No.${mapper.getValue(row, "dexNo", "-")}`, userPokemon.pokemonId)).join("")}
+        </select>
+      </label>
+      <label>ニックネーム
+        <input class="input" name="nickname" value="${escapeHtml(userPokemon.nickname || "")}" placeholder="未入力なら連番表示">
+      </label>
+      <label>Lv
+        <input class="input" name="level" type="number" min="1" max="100" value="${escapeHtml(userPokemon.level || 1)}">
+      </label>
+      <label>育成状態
+        <select class="select" name="trainingStatus">
+          ${trainingStatuses.map((status) => option(status, status, userPokemon.trainingStatus || "未設定")).join("")}
+        </select>
+      </label>
+      <label>Lv1食材
+        <select id="editIngredientLv1" class="select" name="ingredientLv1">${pokemonIngredientOptions(state, userPokemon.pokemonId, userPokemon.ingredientLv1, "ingredientA")}</select>
+      </label>
+      <label>Lv30食材
+        <select id="editIngredientLv30" class="select" name="ingredientLv30">${pokemonIngredientOptions(state, userPokemon.pokemonId, userPokemon.ingredientLv30, "ingredientB")}</select>
+      </label>
+      <label>Lv60食材
+        <select id="editIngredientLv60" class="select" name="ingredientLv60">${pokemonIngredientOptions(state, userPokemon.pokemonId, userPokemon.ingredientLv60, "ingredientC")}</select>
+      </label>
+      <label>メインスキルLv
+        <input class="input" name="mainSkillLevel" type="number" min="1" max="7" value="${escapeHtml(userPokemon.mainSkillLevel || 1)}">
+      </label>
+      <label>性格
+        <select class="select" name="natureId">
+          ${option("NONE", "未設定", userPokemon.natureId || "NONE")}
+          ${mapper.table("tblNature").map((row) => option(mapper.masterOptionValue(row), row.名前 ?? mapper.rowId(row), userPokemon.natureId || "NONE")).join("")}
+        </select>
+      </label>
+      ${renderSubSkillFields(state, userPokemon)}
+      <label>お気に入り
+        <select class="select" name="isFavorite">
+          ${option("false", "いいえ", String(Boolean(userPokemon.isFavorite)))}
+          ${option("true", "はい", String(Boolean(userPokemon.isFavorite)))}
+        </select>
+      </label>
+      <label class="wide">メモ
+        <textarea class="textarea" name="memo" placeholder="自由入力">${escapeHtml(userPokemon.memo || "")}</textarea>
+      </label>
+      <div class="button-row wide">
+        <button class="primary-button" type="submit">登録内容を保存</button>
+      </div>
+    </form>
+  `;
+}
+
+function pokemonIngredientOptions(state, pokemonId, selectedId, fallbackKey) {
+  const mapper = state.mapper;
+  const species = mapper.pokemonById(pokemonId);
+  const fallback = species ? mapper.getValue(species, fallbackKey) : "NONE";
+  const options = [selectedId || fallback || "NONE", fallback].filter(Boolean);
+  if (species) {
+    options.push(mapper.getValue(species, "ingredientA"), mapper.getValue(species, "ingredientB"), mapper.getValue(species, "ingredientC"));
+  }
+  const unique = [...new Set(options.filter((value) => value && value !== "NONE"))];
+  return option("NONE", "未設定", selectedId || "NONE") + unique.map((id) => option(id, state.mapper.lookupName("tblIngredient", id, id), selectedId || fallback)).join("");
+}
+
+function renderDetailPage(userPokemon, state) {
+  return `
+    <section class="page-head">
+      <div>
+        <h2>個体詳細</h2>
+        <p>登録内容と役割を確認・編集します。</p>
+      </div>
+      <button class="secondary-button" type="button" data-back-to-pokemon-list>一覧へ戻る</button>
+    </section>
+    ${renderUserPokemonDetail(userPokemon, state)}
+  `;
+}
+
+function bindDetailEvents(state, actions) {
+  document.querySelector("[data-back-to-pokemon-list]")?.addEventListener("click", () => {
+    state.pokemonDetailOpen = false;
+    renderPokemonPage({ state, view: document.querySelector("#view"), actions });
+  });
+  document.querySelector("#editPokemonForm")?.addEventListener("submit", (event) => handleEditPokemon(event, state, actions));
+  document.querySelector("#editSpecies")?.addEventListener("change", () => fillEditSpeciesDefaults(state));
+  document.querySelector("#roleForm")?.addEventListener("submit", (event) => handleRoleSave(event, state, actions));
+  document.querySelector("#deleteSelected")?.addEventListener("click", () => handleDeleteSelected(state, actions));
+}
+
 function renderRoleForm(userPokemon, state) {
   const mapper = state.mapper;
+  const species = mapper.pokemonById(userPokemon.pokemonId);
   const roles = getRoleAssignmentsForUser(userPokemon.userPokemonId, state.roleAssignments);
   const berryRole = roles.berryRoles[0];
   const ingredientRoles = [...roles.ingredientRoles];
@@ -298,7 +484,7 @@ function renderRoleForm(userPokemon, state) {
       <label>きのみ担当タイプ
         <select class="select" name="berryTypeId">
           ${option("NONE", "未設定", berryRole?.typeId ?? "NONE")}
-          ${mapper.table("tblType").map((row) => option(mapper.masterOptionValue(row), row.名前 ?? mapper.rowId(row), berryRole?.typeId ?? "NONE")).join("")}
+          ${roleTypeOptions(state, species, berryRole?.typeId)}
         </select>
       </label>
       <label>きのみ役割状態
@@ -306,7 +492,7 @@ function renderRoleForm(userPokemon, state) {
           ${ROLE_STATUS_OPTIONS.map((status) => option(status, status, berryRole?.roleStatus ?? "採用")).join("")}
         </select>
       </label>
-      ${ingredientRoles.map((role, index) => renderIngredientRoleFields(role, index + 1, state)).join("")}
+      ${ingredientRoles.map((role, index) => renderIngredientRoleFields(role, index + 1, userPokemon, state)).join("")}
       ${skillRoles.map((role, index) => renderSkillRoleFields(role, index + 1, state)).join("")}
       <div class="button-row wide">
         <button class="primary-button" type="submit">役割を保存</button>
@@ -315,13 +501,20 @@ function renderRoleForm(userPokemon, state) {
   `;
 }
 
-function renderIngredientRoleFields(role, index, state) {
+function roleTypeOptions(state, species, selectedId) {
+  const mapper = state.mapper;
+  const speciesType = species ? mapper.getValue(species, "typeId") : "";
+  const ids = [selectedId, speciesType].filter((id) => id && id !== "NONE");
+  return [...new Set(ids)].map((id) => option(id, mapper.lookupName("tblType", id, id), selectedId || speciesType)).join("");
+}
+
+function renderIngredientRoleFields(role, index, userPokemon, state) {
   const mapper = state.mapper;
   return `
     <label>食材担当${index}
       <select class="select" name="ingredientRole${index}">
         ${option("NONE", "未設定", role?.ingredientId ?? "NONE")}
-        ${mapper.table("tblIngredient").map((row) => option(mapper.masterOptionValue(row), row.名前 ?? mapper.rowId(row), role?.ingredientId ?? "NONE")).join("")}
+        ${roleIngredientOptions(state, userPokemon, role?.ingredientId)}
       </select>
     </label>
     <label>食材評価${index}
@@ -333,6 +526,18 @@ function renderIngredientRoleFields(role, index, state) {
       </select>
     </label>
   `;
+}
+
+function roleIngredientOptions(state, userPokemon, selectedId) {
+  const mapper = state.mapper;
+  const species = mapper.pokemonById(userPokemon.pokemonId);
+  const ids = [selectedId];
+  if (species) {
+    ids.push(mapper.getValue(species, "ingredientA"), mapper.getValue(species, "ingredientB"), mapper.getValue(species, "ingredientC"));
+  }
+  return [...new Set(ids.filter((id) => id && id !== "NONE"))]
+    .map((id) => option(id, mapper.lookupName("tblIngredient", id, id), selectedId))
+    .join("");
 }
 
 function renderSkillRoleFields(role, index, state) {
@@ -367,6 +572,7 @@ async function handleRoleSave(event, state, actions) {
   await actions.refreshRoleAssignments();
   actions.recalculateRoleProgress();
   await actions.regenerateTodos();
+  actions.notify("保存しました");
   renderPokemonPage({ state, view: document.querySelector("#view"), actions });
 }
 
@@ -382,5 +588,7 @@ async function handleDeleteSelected(state, actions) {
   actions.recalculateRoleProgress();
   await actions.regenerateTodos();
   state.selectedUserPokemonId = state.userPokemon[0]?.userPokemonId ?? null;
+  state.pokemonDetailOpen = false;
+  actions.notify("削除しました");
   renderPokemonPage({ state, view: document.querySelector("#view"), actions });
 }

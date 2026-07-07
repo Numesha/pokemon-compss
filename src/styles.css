@@ -341,6 +341,21 @@ button {
   border-color: rgba(184, 85, 77, 0.35);
 }
 
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: calc(86px + env(safe-area-inset-bottom));
+  z-index: 20;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 11px 14px;
+  border: 1px solid rgba(79, 143, 95, 0.35);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--green);
+  box-shadow: var(--shadow);
+  font-weight: 800;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));

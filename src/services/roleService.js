@@ -9,6 +9,28 @@ export const SKILL_ROLE_OPTIONS = [
   "食材補助",
 ];
 
+const INGREDIENT_ICONS = {
+  "あまいミツ": "🍯",
+  "あんみんトマト": "🍅",
+  "とくせんリンゴ": "🍎",
+  "モーモーミルク": "🥛",
+  "リラックスカカオ": "🍫",
+  "マメミート": "🥩",
+  "とくせんエッグ": "🥚",
+  "あったかジンジャー": "🫚",
+  "げきからハーブ": "🌿",
+  "ワカクサ大豆": "🫘",
+  "ピュアなオイル": "🫒",
+  "ほっこりポテト": "🥔",
+  "あじわいキノコ": "🍄",
+  "ふといながねぎ": "🧅",
+  "おいしいシッポ": "➰",
+  "ワカクサコーン": "🌽",
+  "ずっしりカボチャ": "🎃",
+  "つやつやアボカド": "🥑",
+  "めざましコーヒー": "☕",
+};
+
 export function getEmptyRoleAssignments() {
   return {
     berryRoles: [],
@@ -37,7 +59,7 @@ export function buildRoleSummary(userPokemonId, roleAssignments, mapper) {
     })),
     ...roles.ingredientRoles.map((role) => ({
       kind: "ingredient",
-      icon: "🌽",
+      icon: ingredientIcon(mapper.lookupName("tblIngredient", role.ingredientId, role.ingredientId)),
       label: `${mapper.lookupName("tblIngredient", role.ingredientId, role.ingredientId)}（${role.score}）`,
       status: role.roleStatus,
     })),
@@ -50,6 +72,11 @@ export function buildRoleSummary(userPokemonId, roleAssignments, mapper) {
       status: role.roleStatus,
     })),
   ];
+}
+
+function ingredientIcon(name) {
+  if (INGREDIENT_ICONS[name]) return INGREDIENT_ICONS[name];
+  return String(name || "食").slice(0, 1);
 }
 
 export function buildRoleAssignmentsFromForm(userPokemonId, formData) {
