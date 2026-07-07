@@ -82,7 +82,7 @@ function ingredientIcon(name) {
 export function buildRoleAssignmentsFromForm(userPokemonId, formData) {
   const createdAt = new Date().toISOString();
   const berryTypeId = String(formData.get("berryTypeId") || "NONE");
-  const berryStatus = String(formData.get("berryRoleStatus") || "採用");
+  const berryStatus = normalizeRoleStatus(formData.get("berryRoleStatus"));
   const berryRoles = berryTypeId === "NONE"
     ? []
     : [{
@@ -98,7 +98,7 @@ export function buildRoleAssignmentsFromForm(userPokemonId, formData) {
     .map((index) => {
       const ingredientId = String(formData.get(`ingredientRole${index}`) || "NONE");
       const score = Number(formData.get(`ingredientScore${index}`) || 0);
-      const roleStatus = String(formData.get(`ingredientRoleStatus${index}`) || "採用");
+      const roleStatus = normalizeRoleStatus(formData.get(`ingredientRoleStatus${index}`));
       if (ingredientId === "NONE" || score <= 0) return null;
       return {
         assignmentId: `ingredient_role_${crypto.randomUUID()}`,
@@ -116,7 +116,7 @@ export function buildRoleAssignmentsFromForm(userPokemonId, formData) {
     .map((index) => {
       const skillRole = String(formData.get(`skillRole${index}`) || "NONE");
       const targetTypeId = String(formData.get(`skillTargetType${index}`) || "NONE");
-      const roleStatus = String(formData.get(`skillRoleStatus${index}`) || "採用");
+      const roleStatus = normalizeRoleStatus(formData.get(`skillRoleStatus${index}`));
       if (skillRole === "NONE") return null;
       return {
         assignmentId: `skill_role_${crypto.randomUUID()}`,
@@ -131,4 +131,9 @@ export function buildRoleAssignmentsFromForm(userPokemonId, formData) {
     .filter(Boolean);
 
   return { berryRoles, ingredientRoles, skillRoles };
+}
+
+function normalizeRoleStatus(value) {
+  const status = String(value || "NONE");
+  return ROLE_STATUS_OPTIONS.includes(status) ? status : "候補";
 }

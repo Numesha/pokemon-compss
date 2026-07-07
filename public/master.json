@@ -1,10 +1,10 @@
 {
     "meta":  {
                  "schemaVersion":  1,
-                 "appVersion":  "1.0.0",
-                 "masterVersion":  "2026.07.06",
-                 "masterUpdatedAt":  "2026-07-06T00:00:00+09:00",
-                 "generatedAt":  "2026-07-06T17:12:13.7925533+09:00",
+                 "appVersion":  "1.0.3",
+                 "masterVersion":  "2026.07.08",
+                 "masterUpdatedAt":  "2026-07-08T00:00:00+09:00",
+                 "generatedAt":  "2026-07-08T08:13:27.1652143+09:00",
                  "sourceWorkbook":  "ポケスリメインデータ.xlsx"
              },
     "tables":  {
@@ -8257,43 +8257,43 @@
                                               },
                                               {
                                                   "NatureID":  "MODEST",
-                                                  "UpEffectID":  "MAIN_SKILL",
+                                                  "UpEffectID":  "INGREDIENT_FINDING",
                                                   "DownEffectID":  "HELP_SPEED"
                                               },
                                               {
                                                   "NatureID":  "MILD",
-                                                  "UpEffectID":  "MAIN_SKILL",
+                                                  "UpEffectID":  "INGREDIENT_FINDING",
                                                   "DownEffectID":  "ENERGY_RECOVERY"
                                               },
                                               {
                                                   "NatureID":  "QUIET",
-                                                  "UpEffectID":  "MAIN_SKILL",
+                                                  "UpEffectID":  "INGREDIENT_FINDING",
                                                   "DownEffectID":  "EXP_GAIN"
                                               },
                                               {
                                                   "NatureID":  "RASH",
-                                                  "UpEffectID":  "MAIN_SKILL",
-                                                  "DownEffectID":  "INGREDIENT_FINDING"
+                                                  "UpEffectID":  "INGREDIENT_FINDING",
+                                                  "DownEffectID":  "MAIN_SKILL"
                                               },
                                               {
                                                   "NatureID":  "CALM",
-                                                  "UpEffectID":  "INGREDIENT_FINDING",
+                                                  "UpEffectID":  "MAIN_SKILL",
                                                   "DownEffectID":  "HELP_SPEED"
                                               },
                                               {
                                                   "NatureID":  "GENTLE",
-                                                  "UpEffectID":  "INGREDIENT_FINDING",
+                                                  "UpEffectID":  "MAIN_SKILL",
                                                   "DownEffectID":  "ENERGY_RECOVERY"
                                               },
                                               {
                                                   "NatureID":  "SASSY",
-                                                  "UpEffectID":  "INGREDIENT_FINDING",
+                                                  "UpEffectID":  "MAIN_SKILL",
                                                   "DownEffectID":  "EXP_GAIN"
                                               },
                                               {
                                                   "NatureID":  "CAREFUL",
-                                                  "UpEffectID":  "INGREDIENT_FINDING",
-                                                  "DownEffectID":  "MAIN_SKILL"
+                                                  "UpEffectID":  "MAIN_SKILL",
+                                                  "DownEffectID":  "INGREDIENT_FINDING"
                                               }
                                           ],
                    "tblRecipe":  [

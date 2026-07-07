@@ -244,6 +244,24 @@ button {
   font-size: 17px;
 }
 
+.link-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link-button:hover,
+.link-button:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
 .meta-list {
   display: flex;
   flex-wrap: wrap;

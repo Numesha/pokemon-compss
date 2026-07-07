@@ -21,7 +21,7 @@ import { renderTodoPage } from "./pages/TodoPage.js";
 import { renderRolePage } from "./pages/RolePage.js";
 import { renderUnsetListPage } from "./pages/UnsetListPage.js";
 
-const APP_VERSION = "1.0.2";
+const APP_VERSION = "1.0.3";
 
 const state = {
   route: "home",
@@ -53,6 +53,7 @@ const state = {
     dexQuery: "",
     dexSpecialty: "ALL",
     dexType: "ALL",
+    dexRole: "ALL",
     pokemonQuery: "",
     pokemonStatus: "ALL",
   },

@@ -51,8 +51,8 @@ export function renderPokemonPage({ state, view, actions }) {
       </label>
     </section>
     <section class="split">
-      <div class="grid pokemon-grid">
-        ${filtered.length ? filtered.map((userPokemon) => renderUserPokemonCard(userPokemon, state)).join("") : `<div class="empty-state">条件に一致するデータがありません</div>`}
+      <div id="pokemonGrid" class="grid pokemon-grid">
+        ${renderPokemonGrid(filtered, state)}
       </div>
     </section>
   `;
@@ -62,7 +62,7 @@ export function renderPokemonPage({ state, view, actions }) {
   });
   document.querySelector("#pokemonQuery").addEventListener("input", (event) => {
     state.filters.pokemonQuery = event.target.value;
-    renderPokemonPage({ state, view, actions });
+    updatePokemonResults(state, actions);
   });
   document.querySelector("#pokemonStatus").addEventListener("change", (event) => {
     state.filters.pokemonStatus = event.target.value;
@@ -71,6 +71,23 @@ export function renderPokemonPage({ state, view, actions }) {
   document.querySelector("#registerForm").addEventListener("submit", (event) => handleRegister(event, state, actions));
   bindSpeciesPickers(state);
   bindDirtyTracking();
+  bindUserPokemonCardEvents(state, actions);
+}
+
+function renderPokemonGrid(filtered, state) {
+  return filtered.length
+    ? filtered.map((userPokemon) => renderUserPokemonCard(userPokemon, state)).join("")
+    : `<div class="empty-state">条件に一致するデータがありません</div>`;
+}
+
+function updatePokemonResults(state, actions) {
+  const filtered = state.userPokemon.filter((userPokemon) => matchesPokemonFilters(userPokemon, state));
+  const grid = document.querySelector("#pokemonGrid");
+  if (grid) grid.innerHTML = renderPokemonGrid(filtered, state);
+  bindUserPokemonCardEvents(state, actions);
+}
+
+function bindUserPokemonCardEvents(state, actions) {
   document.querySelectorAll("[data-user-pokemon-id]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedUserPokemonId = button.dataset.userPokemonId;
@@ -85,11 +102,10 @@ function renderRegisterForm(state) {
     .table("tblPokemon")
     .slice()
     .sort((a, b) => Number(mapper.getValue(a, "dexNo", 0)) - Number(mapper.getValue(b, "dexNo", 0)));
-  const first = pokemonRows[0];
   return `
     <form id="registerForm" class="form-grid">
       <label>種族
-        ${renderSpeciesPicker("register", pokemonRows, mapper, first ? mapper.pokemonId(first) : "")}
+        ${renderSpeciesPicker("register", pokemonRows, mapper, "")}
       </label>
       <label>ニックネーム
         <input class="input" name="nickname" placeholder="未入力なら連番表示">
@@ -103,13 +119,13 @@ function renderRegisterForm(state) {
         </select>
       </label>
       <label>Lv1食材
-        <select id="ingredientLv1" class="select" name="ingredientLv1">${ingredientOptions(state, first ? mapper.getValue(first, "ingredientA") : "")}</select>
+        <select id="ingredientLv1" class="select" name="ingredientLv1">${pokemonIngredientOptions(state, "", "NONE", "ingredientA")}</select>
       </label>
       <label>Lv30食材
-        <select id="ingredientLv30" class="select" name="ingredientLv30">${ingredientOptions(state, first ? mapper.getValue(first, "ingredientB") : "")}</select>
+        <select id="ingredientLv30" class="select" name="ingredientLv30">${pokemonIngredientOptions(state, "", "NONE", "ingredientB")}</select>
       </label>
       <label>Lv60食材
-        <select id="ingredientLv60" class="select" name="ingredientLv60">${ingredientOptions(state, first ? mapper.getValue(first, "ingredientC") : "")}</select>
+        <select id="ingredientLv60" class="select" name="ingredientLv60">${pokemonIngredientOptions(state, "", "NONE", "ingredientC")}</select>
       </label>
       <label>メインスキルLv
         <input class="input" name="mainSkillLevel" type="number" min="1" max="7" value="1">
@@ -138,7 +154,7 @@ function renderRegisterForm(state) {
 }
 
 function renderSpeciesPicker(id, pokemonRows, mapper, selectedPokemonId) {
-  const selected = mapper.pokemonById(selectedPokemonId) || pokemonRows[0];
+  const selected = mapper.pokemonById(selectedPokemonId);
   const selectedId = selected ? mapper.pokemonId(selected) : "";
   const selectedLabel = selected ? mapper.pokemonDisplayName(selected) : "";
   return `
@@ -203,19 +219,14 @@ function selectSpeciesCandidate(button, state) {
   if (id === "edit") fillEditSpeciesDefaults(state);
 }
 
-function ingredientOptions(state, selectedId) {
-  const mapper = state.mapper;
-  const base = option("NONE", "未設定", selectedId || "NONE");
-  return base + mapper.table("tblIngredient").map((row) => option(mapper.masterOptionValue(row), row.名前 ?? mapper.rowId(row), selectedId)).join("");
-}
-
 function fillSpeciesDefaults(state) {
   const mapper = state.mapper;
-  const selected = mapper.pokemonById(document.querySelector("[data-species-picker-id='register']").value);
+  const pokemonId = document.querySelector("[data-species-picker-id='register']").value;
+  const selected = mapper.pokemonById(pokemonId);
   if (!selected) return;
-  document.querySelector("#ingredientLv1").innerHTML = ingredientOptions(state, mapper.getValue(selected, "ingredientA"));
-  document.querySelector("#ingredientLv30").innerHTML = ingredientOptions(state, mapper.getValue(selected, "ingredientB"));
-  document.querySelector("#ingredientLv60").innerHTML = ingredientOptions(state, mapper.getValue(selected, "ingredientC"));
+  document.querySelector("#ingredientLv1").innerHTML = pokemonIngredientOptions(state, pokemonId, mapper.getValue(selected, "ingredientA"), "ingredientA");
+  document.querySelector("#ingredientLv30").innerHTML = pokemonIngredientOptions(state, pokemonId, mapper.getValue(selected, "ingredientB"), "ingredientB");
+  document.querySelector("#ingredientLv60").innerHTML = pokemonIngredientOptions(state, pokemonId, mapper.getValue(selected, "ingredientC"), "ingredientC");
 }
 
 function fillEditSpeciesDefaults(state) {
@@ -571,7 +582,7 @@ function renderRoleForm(userPokemon, state) {
       </label>
       <label>きのみ役割状態
         <select class="select" name="berryRoleStatus">
-          ${ROLE_STATUS_OPTIONS.map((status) => option(status, status, berryRole?.roleStatus ?? "採用")).join("")}
+          ${roleStatusOptions(berryRole?.roleStatus)}
         </select>
       </label>
       ${ingredientRoles.map((role, index) => renderIngredientRoleFields(role, index + 1, userPokemon, state)).join("")}
@@ -587,7 +598,7 @@ function roleTypeOptions(state, species, selectedId) {
   const mapper = state.mapper;
   const speciesType = species ? mapper.getValue(species, "typeId") : "";
   const ids = [selectedId, speciesType].filter((id) => id && id !== "NONE");
-  return [...new Set(ids)].map((id) => option(id, mapper.lookupName("tblType", id, id), selectedId || speciesType)).join("");
+  return [...new Set(ids)].map((id) => option(id, mapper.lookupName("tblType", id, id), selectedId || "NONE")).join("");
 }
 
 function renderIngredientRoleFields(role, index, userPokemon, state) {
@@ -604,10 +615,16 @@ function renderIngredientRoleFields(role, index, userPokemon, state) {
     </label>
     <label>食材状態${index}
       <select class="select" name="ingredientRoleStatus${index}">
-        ${ROLE_STATUS_OPTIONS.map((status) => option(status, status, role?.roleStatus ?? "採用")).join("")}
+        ${roleStatusOptions(role?.roleStatus)}
       </select>
     </label>
   `;
+}
+
+function roleStatusOptions(selectedStatus) {
+  const selected = selectedStatus || "NONE";
+  return option("NONE", "未設定", selected) +
+    ROLE_STATUS_OPTIONS.map((status) => option(status, status, selected)).join("");
 }
 
 function roleIngredientOptions(state, userPokemon, selectedId) {
@@ -639,7 +656,7 @@ function renderSkillRoleFields(role, index, state) {
     </label>
     <label>スキル状態${index}
       <select class="select" name="skillRoleStatus${index}">
-        ${ROLE_STATUS_OPTIONS.map((status) => option(status, status, role?.roleStatus ?? "採用")).join("")}
+        ${roleStatusOptions(role?.roleStatus)}
       </select>
     </label>
   `;

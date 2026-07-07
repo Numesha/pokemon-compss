@@ -1,4 +1,4 @@
-const ACTIVE_STATUSES = new Set(["採用", "つなぎ", "謗｡逕ｨ", "縺､縺ｪ縺・"]);
+const ACTIVE_STATUSES = new Set(["採用", "つなぎ", "育成中", "育成予定", "候補"]);
 
 export function buildIslandSleepTypeTodoGroups(todos) {
   const groupsByKey = new Map();
@@ -67,20 +67,13 @@ export function buildCurrentForcesForIslandTypes({ mapper, userPokemon, roleAssi
   }));
 
   return userPokemon
-    .filter((item) => {
-      const species = mapper.pokemonById(item.pokemonId);
-      if (!species) return false;
-      const typeId = mapper.getValue(species, "typeId", "NONE");
-      const typeName = mapper.lookupName("tblType", typeId, typeId);
-      return targetTypes.has(String(typeId)) || targetTypes.has(String(typeName));
-    })
     .map((item) => ({
       userPokemonId: item.userPokemonId,
       pokemonId: item.pokemonId,
       displayName: displayName(item),
       level: item.level,
       trainingStatus: item.trainingStatus,
-      roles: activeRoleLabels(item, roleAssignments, mapper),
+      roles: islandForceRoleLabels(item, roleAssignments, mapper, targetTypes),
     }))
     .filter((item) => item.roles.length > 0)
     .sort((a, b) => `${a.displayName}:${a.level}`.localeCompare(`${b.displayName}:${b.level}`, "ja"));
@@ -143,4 +136,21 @@ function activeRoleLabels(userPokemon, roleAssignments, mapper) {
       .filter((role) => role.userPokemonId === userPokemon.userPokemonId && ACTIVE_STATUSES.has(role.roleStatus))
       .map((role) => `スキル: ${role.skillRole}`),
   ];
+}
+
+function islandForceRoleLabels(userPokemon, roleAssignments, mapper, targetTypes) {
+  if (!ACTIVE_STATUSES.has(userPokemon.trainingStatus)) return [];
+
+  const berryRoles = roleAssignments.berryRoles
+    .filter((role) => role.userPokemonId === userPokemon.userPokemonId && ACTIVE_STATUSES.has(role.roleStatus))
+    .filter((role) => targetTypes.has(String(role.typeId)) || targetTypes.has(String(mapper.lookupName("tblType", role.typeId, role.typeId))))
+    .map((role) => `きのみ: ${mapper.lookupName("tblType", role.typeId, role.typeId)}`);
+
+  const energyRoles = roleAssignments.skillRoles
+    .filter((role) => role.userPokemonId === userPokemon.userPokemonId && ACTIVE_STATUSES.has(role.roleStatus))
+    .filter((role) => role.skillRole === "エナジー" && role.targetTypeId)
+    .filter((role) => targetTypes.has(String(role.targetTypeId)) || targetTypes.has(String(mapper.lookupName("tblType", role.targetTypeId, role.targetTypeId))))
+    .map((role) => `エナジー: ${mapper.lookupName("tblType", role.targetTypeId, role.targetTypeId)}`);
+
+  return [...berryRoles, ...energyRoles];
 }

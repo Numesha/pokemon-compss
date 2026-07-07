@@ -1,8 +1,20 @@
-# ポケスリ育成コンパス Ver.1.0.2
+# ポケスリ育成コンパス Ver.1.0.3
 
 ポケモンスリープの育成・厳選・島選択を整理するためのPWAです。
 
 アプリが最適解を決めるのではなく、ユーザー自身が判断できるように、登録個体、図鑑設定、種族候補、目標、Progress、ToDo、ホーム、島、役割画面、未設定一覧をつなげて表示します。
+
+## Ver1.0.3の修正内容
+
+- 個体登録 / 編集と図鑑検索で、入力中に候補が勝手に確定されないように修正
+- 個体登録時の種族初期値を空欄に変更
+- 個体登録 / 編集の食材選択を、対象ポケモンの食材候補内に制限
+- 個体詳細の役割編集で、未設定の項目が自動選択されないように修正
+- 島の現在戦力を、その島の好物タイプに対応する「きのみ担当」「エナジー担当」だけに修正
+- 島の現在戦力に、採用 / つなぎ / 育成中 / 育成予定 / 候補を表示対象として追加
+- 図鑑一覧から厳選状態を直接切り替えられるボタンを追加
+- 図鑑検索に、SpeciesRoleCandidateを使った役割フィルターを追加
+- Excel更新後にmaster.jsonへ反映する手順を追記
 
 ## Ver1.0.2の改善内容
 
@@ -30,6 +42,30 @@
 - `scripts/serve.ps1`: ローカル確認用サーバー
 - `scripts/build-master-json.ps1`: Excelからmaster.jsonを生成するスクリプト
 - `docs/master-json-generation.md`: master.json生成メモ
+
+## Excel更新をアプリへ反映する手順
+
+Excel「ポケスリメインデータ.xlsx」は正式なマスターデータです。アプリはExcelを直接読まず、Excelから生成した `public/master.json` を読み込みます。
+
+1. Excel「ポケスリメインデータ.xlsx」を修正して保存します。
+2. PowerShellでこのアプリのフォルダを開きます。
+3. 以下を実行します。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-master-json.ps1 -InputPath "C:\Users\kinoo\OneDrive\デスクトップ\ポケスリメインデータ.xlsx" -OutputPath public\master.json -AppVersion 1.0.3 -MasterVersion 2026.07.08 -MasterUpdatedAt 2026-07-08T00:00:00+09:00
+```
+
+4. `public/master.json` が更新されたことを確認します。
+5. GitHubへ `public/master.json` をアップロードします。Excelファイル本体をGitHub Pages用にアップロードする必要はありません。
+6. GitHub PagesのURLを開き、変更内容が反映されているか確認します。
+7. スマホで確認する場合は、ホーム画面に追加したアプリを一度終了してから開き直します。
+
+Service Workerのキャッシュが古い場合は、次の順に試してください。
+
+1. ブラウザでページを再読み込みします。
+2. ホーム画面に追加したPWAを完全に終了して開き直します。
+3. まだ古い場合は、SafariのWebサイトデータ、またはブラウザのサイトデータを削除してから開き直します。
+4. GitHub Pagesへアップロードした `public/master.json` が最新かを確認します。
 
 ## 起動方法
 

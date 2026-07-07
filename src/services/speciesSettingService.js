@@ -8,8 +8,8 @@ export const HUNT_STATUS = {
 export const HUNT_STATUS_OPTIONS = [
   HUNT_STATUS.unset,
   HUNT_STATUS.hunt,
-  HUNT_STATUS.hold,
   HUNT_STATUS.exclude,
+  HUNT_STATUS.hold,
 ];
 
 export function getSpeciesSetting(speciesSettings, pokemonId) {
