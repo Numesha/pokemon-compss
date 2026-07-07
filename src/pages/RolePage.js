@@ -13,12 +13,14 @@ export function renderRolePage({ kind, state, view, actions }) {
   const items = buildRolePageItems({ kind, state });
 
   view.innerHTML = `
+    <nav class="breadcrumb">役割 ＞ ${escapeHtml(config.title)}</nav>
     <section class="page-head">
       <div>
         <h2>${escapeHtml(config.title)}</h2>
         <p>${escapeHtml(config.description)}</p>
       </div>
       <span class="badge">${items.length}件</span>
+      <button class="secondary-button fixed-back-button" type="button" data-back-to-menu>一覧へ戻る</button>
     </section>
     <form id="roleGoalForm">
       <section class="role-list">
@@ -31,6 +33,20 @@ export function renderRolePage({ kind, state, view, actions }) {
   `;
 
   document.querySelector("#roleGoalForm")?.addEventListener("submit", (event) => handleGoalSave(event, kind, items, actions));
+  if (document.querySelector("#roleGoalForm")) document.querySelector("#roleGoalForm").dataset.dirty = "false";
+  document.querySelector("#roleGoalForm")?.addEventListener("input", (event) => {
+    event.currentTarget.dataset.dirty = "true";
+  });
+  document.querySelector("[data-back-to-menu]")?.addEventListener("click", () => actions.backToMenu());
+  document.querySelectorAll("[data-open-user-pokemon]").forEach((button) => {
+    button.addEventListener("click", () => actions.openPokemonDetail(button.dataset.openUserPokemon));
+  });
+  document.querySelectorAll("[data-register-for-role]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.registerPrefill = { kind: button.dataset.kind, targetId: button.dataset.targetId };
+      actions.setRoute("pokemon");
+    });
+  });
 }
 
 function renderRoleItem(item) {
@@ -62,7 +78,7 @@ function renderRoleItem(item) {
       <div class="role-columns">
         <section>
           <h4>担当個体</h4>
-          ${renderAssignees(item.assignees)}
+          ${renderAssignees(item)}
         </section>
         <section>
           <h4>候補種族</h4>
@@ -73,15 +89,18 @@ function renderRoleItem(item) {
   `;
 }
 
-function renderAssignees(assignees) {
-  if (assignees.length === 0) {
-    return `<p class="muted">担当個体はありません。</p>`;
+function renderAssignees(item) {
+  if (item.assignees.length === 0) {
+    return `
+      <p class="muted">担当個体はありません。</p>
+      <button class="secondary-button" type="button" data-register-for-role data-kind="${escapeHtml(item.kind)}" data-target-id="${escapeHtml(item.targetId)}">この役割の個体を登録</button>
+    `;
   }
   return `
     <ul class="role-mini-list">
-      ${assignees.map((assignee) => `
+      ${item.assignees.map((assignee) => `
         <li>
-          <strong>${escapeHtml(assignee.displayName)}</strong>
+          <button class="secondary-button candidate-button" type="button" data-open-user-pokemon="${escapeHtml(assignee.userPokemonId)}">${escapeHtml(assignee.displayName)}</button>
           <span>${escapeHtml(assignee.trainingStatus)} / ${escapeHtml(assignee.roleStatus)}${assignee.score ? ` / ${escapeHtml(assignee.score)}` : ""}</span>
         </li>
       `).join("")}
@@ -120,5 +139,6 @@ async function handleGoalSave(event, kind, items, actions) {
   actions.recalculateRoleProgress();
   await actions.regenerateTodos();
   actions.notify("保存しました");
+  event.target.dataset.dirty = "false";
   actions.render();
 }

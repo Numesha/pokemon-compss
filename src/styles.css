@@ -110,6 +110,42 @@ button {
   margin-bottom: 16px;
 }
 
+.breadcrumb {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.fixed-back-button {
+  position: fixed;
+  right: 16px;
+  bottom: calc(142px + env(safe-area-inset-bottom));
+  z-index: 19;
+  box-shadow: var(--shadow);
+}
+
+.fold-panel summary {
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.fold-panel summary::marker {
+  color: var(--accent-strong);
+}
+
+.candidate-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.candidate-button {
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .page-head h2 {
   margin: 0;
   font-size: clamp(22px, 4vw, 32px);

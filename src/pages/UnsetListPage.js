@@ -6,12 +6,14 @@ export function renderUnsetListPage({ state, view, actions }) {
   const groups = groupByCategory(items);
 
   view.innerHTML = `
+    <nav class="breadcrumb">メニュー ＞ 未設定一覧</nav>
     <section class="page-head">
       <div>
         <h2>未設定一覧</h2>
         <p>判断に必要な設定がまだ入っていない項目を確認します。</p>
       </div>
       <span class="badge">${items.length}件</span>
+      <button class="secondary-button fixed-back-button" type="button" data-back-to-menu>一覧へ戻る</button>
     </section>
     ${
       groups.length
@@ -19,6 +21,7 @@ export function renderUnsetListPage({ state, view, actions }) {
         : `<section class="empty-state">未設定項目はありません。</section>`
     }
   `;
+  document.querySelector("[data-back-to-menu]")?.addEventListener("click", () => actions.backToMenu());
 
   document.querySelectorAll("[data-unset-action]").forEach((button) => {
     button.addEventListener("click", () => {

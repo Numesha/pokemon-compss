@@ -80,7 +80,9 @@ export function createMasterMapper(master) {
     if (!natureId || natureId === "NONE") {
       return { upName: "補正なし", downName: "補正なし" };
     }
-    const map = table("tblNatureEffectMap").find((row) => String(row.NatureID ?? row.natureId) === String(natureId));
+    const nature = table("tblNature").find((row) => String(rowId(row)) === String(natureId) || String(row.名前 ?? row.name) === String(natureId));
+    const normalizedNatureId = nature ? rowId(nature) : natureId;
+    const map = table("tblNatureEffectMap").find((row) => String(row.NatureID ?? row.natureId) === String(normalizedNatureId));
     const upId = map?.UpEffectID ?? "NONE";
     const downId = map?.DownEffectID ?? "NONE";
     return {

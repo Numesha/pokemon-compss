@@ -15,28 +15,30 @@ export function renderDexPage({ state, view, actions }) {
 
   if (state.dexDetailOpen && selected) {
     view.innerHTML = `
+      <nav class="breadcrumb">図鑑 ＞ ${escapeHtml(state.mapper.pokemonDisplayName(selected))}</nav>
       <section class="page-head">
         <div>
           <h2>図鑑詳細</h2>
           <p>種族情報、厳選状態、種族役割候補を確認・編集します。</p>
         </div>
-        <button class="secondary-button" type="button" data-back-to-dex-list>一覧へ戻る</button>
+        <button class="secondary-button fixed-back-button" type="button" data-back-to-dex-list>一覧へ戻る</button>
       </section>
       ${renderDexDetail(selected, state)}
     `;
     document.querySelector("[data-back-to-dex-list]")?.addEventListener("click", () => {
-      state.dexDetailOpen = false;
-      renderDexPage({ state, view, actions });
+      actions.backToDexList();
     });
     document.querySelectorAll("[data-user-pokemon-id]").forEach((button) => {
       button.addEventListener("click", () => actions.openUserPokemon(button.dataset.userPokemonId));
     });
     document.querySelector("#speciesSettingForm")?.addEventListener("submit", (event) => handleSpeciesSettingSave(event, state, view, actions));
     document.querySelector("#speciesRoleCandidateForm")?.addEventListener("submit", (event) => handleSpeciesRoleCandidateSave(event, state, view, actions));
+    bindDirtyTracking();
     return;
   }
 
   view.innerHTML = `
+    <nav class="breadcrumb">図鑑</nav>
     <section class="page-head">
       <div>
         <h2>図鑑</h2>
@@ -81,8 +83,7 @@ export function renderDexPage({ state, view, actions }) {
   document.querySelectorAll("[data-dex-id]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedDexId = button.dataset.dexId;
-      state.dexDetailOpen = true;
-      renderDexPage({ state, view, actions });
+      actions.openDexDetail(button.dataset.dexId);
     });
   });
 }
@@ -148,8 +149,8 @@ function renderDexDetail(row, state) {
         <div class="detail-item"><span>バリエーション</span>${escapeHtml(vm.variationName)}</div>
       </div>
     </section>
-    <section class="panel">
-      <h3>厳選状態</h3>
+    <details class="panel fold-panel">
+      <summary>厳選状態</summary>
       <form id="speciesSettingForm" class="form-grid">
         <label>状態
           <select class="select" name="huntStatus">
@@ -163,11 +164,11 @@ function renderDexDetail(row, state) {
           <button class="primary-button" type="submit">図鑑設定を保存</button>
         </div>
       </form>
-    </section>
-    <section class="panel">
-      <h3>種族役割候補</h3>
+    </details>
+    <details class="panel fold-panel">
+      <summary>種族役割候補</summary>
       ${renderSpeciesRoleCandidateForm(speciesRoleCandidates, state)}
-    </section>
+    </details>
     <section class="panel">
       <h3>食材候補</h3>
       <ul class="meta-list">
@@ -252,6 +253,7 @@ async function handleSpeciesSettingSave(event, state, view, actions) {
   actions.rebuildTodoCandidates();
   await actions.regenerateTodos();
   actions.notify("保存しました");
+  event.target.dataset.dirty = "false";
   renderDexPage({ state, view, actions });
 }
 
@@ -265,7 +267,16 @@ async function handleSpeciesRoleCandidateSave(event, state, view, actions) {
   actions.rebuildTodoCandidates();
   await actions.regenerateTodos();
   actions.notify("保存しました");
+  event.target.dataset.dirty = "false";
   renderDexPage({ state, view, actions });
+}
+
+function bindDirtyTracking() {
+  document.querySelectorAll("form").forEach((form) => {
+    form.dataset.dirty = "false";
+    form.addEventListener("input", () => { form.dataset.dirty = "true"; });
+    form.addEventListener("change", () => { form.dataset.dirty = "true"; });
+  });
 }
 
 function renderOwnedSmallCard(userPokemon, state) {

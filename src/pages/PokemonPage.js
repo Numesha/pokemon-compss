@@ -19,10 +19,13 @@ export function renderPokemonPage({ state, view, actions }) {
   if (state.pokemonDetailOpen && selected) {
     view.innerHTML = renderDetailPage(selected, state);
     bindDetailEvents(state, actions);
+    bindSpeciesPickers(state);
+    bindDirtyTracking();
     return;
   }
 
   view.innerHTML = `
+    <nav class="breadcrumb">個体</nav>
     <section class="page-head">
       <div>
         <h2>個体</h2>
@@ -30,8 +33,9 @@ export function renderPokemonPage({ state, view, actions }) {
       </div>
       <button id="showRegister" class="primary-button" type="button">＋ 登録</button>
     </section>
-    <section id="registerPanel" class="panel hidden">
+    <section id="registerPanel" class="panel ${state.registerPrefill ? "" : "hidden"}">
       <h3>個体登録</h3>
+      ${state.registerPrefill ? `<p class="muted">役割画面から移動しました。登録後、個体詳細で役割を保存してください。</p>` : ""}
       ${renderRegisterForm(state)}
     </section>
     <section class="toolbar">
@@ -65,12 +69,12 @@ export function renderPokemonPage({ state, view, actions }) {
     renderPokemonPage({ state, view, actions });
   });
   document.querySelector("#registerForm").addEventListener("submit", (event) => handleRegister(event, state, actions));
-  document.querySelector("#registerSpecies").addEventListener("change", () => fillSpeciesDefaults(state));
+  bindSpeciesPickers(state);
+  bindDirtyTracking();
   document.querySelectorAll("[data-user-pokemon-id]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedUserPokemonId = button.dataset.userPokemonId;
-      state.pokemonDetailOpen = true;
-      renderPokemonPage({ state, view, actions });
+      actions.openPokemonDetail(button.dataset.userPokemonId);
     });
   });
 }
@@ -85,9 +89,7 @@ function renderRegisterForm(state) {
   return `
     <form id="registerForm" class="form-grid">
       <label>種族
-        <select id="registerSpecies" class="select" name="pokemonId" required>
-          ${pokemonRows.map((row) => option(mapper.pokemonId(row), `${mapper.pokemonDisplayName(row)} / No.${mapper.getValue(row, "dexNo", "-")}`, first ? mapper.pokemonId(first) : "")).join("")}
-        </select>
+        ${renderSpeciesPicker("register", pokemonRows, mapper, first ? mapper.pokemonId(first) : "")}
       </label>
       <label>ニックネーム
         <input class="input" name="nickname" placeholder="未入力なら連番表示">
@@ -135,6 +137,72 @@ function renderRegisterForm(state) {
   `;
 }
 
+function renderSpeciesPicker(id, pokemonRows, mapper, selectedPokemonId) {
+  const selected = mapper.pokemonById(selectedPokemonId) || pokemonRows[0];
+  const selectedId = selected ? mapper.pokemonId(selected) : "";
+  const selectedLabel = selected ? mapper.pokemonDisplayName(selected) : "";
+  return `
+    <input
+      class="input"
+      value="${escapeHtml(selectedLabel)}"
+      placeholder="ポケモン名を入力"
+      autocomplete="off"
+      data-species-picker-input="${escapeHtml(id)}"
+    >
+    <input type="hidden" name="pokemonId" value="${escapeHtml(selectedId)}" data-species-picker-id="${escapeHtml(id)}">
+    <div class="candidate-list" data-species-picker-list="${escapeHtml(id)}"></div>
+  `;
+}
+
+function bindSpeciesPickers(state) {
+  document.querySelectorAll("[data-species-picker-input]").forEach((input) => {
+    const id = input.dataset.speciesPickerInput;
+    const hidden = document.querySelector(`[data-species-picker-id="${id}"]`);
+    const list = document.querySelector(`[data-species-picker-list="${id}"]`);
+    if (!hidden || !list) return;
+
+    const renderCandidates = () => {
+      const query = normalizeText(input.value);
+      const rows = state.mapper.table("tblPokemon")
+        .filter((row) => !query || normalizeText(state.mapper.pokemonDisplayName(row)).includes(query) || normalizeText(state.mapper.pokemonName(row)).includes(query))
+        .slice(0, 8);
+      list.innerHTML = rows.map((row) => `
+        <button
+          class="secondary-button candidate-button"
+          type="button"
+          data-species-candidate="${escapeHtml(state.mapper.pokemonId(row))}"
+          data-species-picker-target="${escapeHtml(id)}"
+        >${escapeHtml(state.mapper.pokemonDisplayName(row))} / No.${escapeHtml(state.mapper.getValue(row, "dexNo", "-"))}</button>
+      `).join("");
+      list.querySelectorAll("[data-species-candidate]").forEach((button) => {
+        button.addEventListener("click", () => selectSpeciesCandidate(button, state));
+      });
+    };
+
+    input.addEventListener("input", () => {
+      hidden.value = "";
+      renderCandidates();
+    });
+    input.addEventListener("focus", renderCandidates);
+  });
+
+}
+
+function selectSpeciesCandidate(button, state) {
+  const id = button.dataset.speciesPickerTarget;
+  const pokemonId = button.dataset.speciesCandidate;
+  const row = state.mapper.pokemonById(pokemonId);
+  const input = document.querySelector(`[data-species-picker-input="${id}"]`);
+  const hidden = document.querySelector(`[data-species-picker-id="${id}"]`);
+  const list = document.querySelector(`[data-species-picker-list="${id}"]`);
+  if (!row || !input || !hidden) return;
+  input.value = state.mapper.pokemonDisplayName(row);
+  hidden.value = pokemonId;
+  if (list) list.innerHTML = "";
+  if (id === "register") fillSpeciesDefaults(state);
+  if (id === "edit") fillEditSpeciesDefaults(state);
+}
+
 function ingredientOptions(state, selectedId) {
   const mapper = state.mapper;
   const base = option("NONE", "未設定", selectedId || "NONE");
@@ -143,7 +211,7 @@ function ingredientOptions(state, selectedId) {
 
 function fillSpeciesDefaults(state) {
   const mapper = state.mapper;
-  const selected = mapper.pokemonById(document.querySelector("#registerSpecies").value);
+  const selected = mapper.pokemonById(document.querySelector("[data-species-picker-id='register']").value);
   if (!selected) return;
   document.querySelector("#ingredientLv1").innerHTML = ingredientOptions(state, mapper.getValue(selected, "ingredientA"));
   document.querySelector("#ingredientLv30").innerHTML = ingredientOptions(state, mapper.getValue(selected, "ingredientB"));
@@ -151,7 +219,7 @@ function fillSpeciesDefaults(state) {
 }
 
 function fillEditSpeciesDefaults(state) {
-  const pokemonId = document.querySelector("#editSpecies")?.value;
+  const pokemonId = document.querySelector("[data-species-picker-id='edit']")?.value;
   const mapper = state.mapper;
   const selected = mapper.pokemonById(pokemonId);
   if (!selected) return;
@@ -223,6 +291,10 @@ function userPokemonFromForm(data, existing, state) {
 async function handleRegister(event, state, actions) {
   event.preventDefault();
   const data = new FormData(event.target);
+  if (!data.get("pokemonId")) {
+    window.alert("候補からポケモンを選択してください。");
+    return;
+  }
   const item = userPokemonFromForm(data, null, state);
 
   await saveUserPokemon(item);
@@ -237,7 +309,12 @@ async function handleEditPokemon(event, state, actions) {
   event.preventDefault();
   const selected = state.userPokemon.find((item) => item.userPokemonId === state.selectedUserPokemonId);
   if (!selected) return;
-  const item = userPokemonFromForm(new FormData(event.target), selected, state);
+  const data = new FormData(event.target);
+  if (!data.get("pokemonId")) {
+    window.alert("候補からポケモンを選択してください。");
+    return;
+  }
+  const item = userPokemonFromForm(data, selected, state);
   await saveUserPokemon(item);
   await actions.refreshUserPokemon();
   state.selectedUserPokemonId = item.userPokemonId;
@@ -316,14 +393,6 @@ function renderUserPokemonDetail(userPokemon, state) {
       }
     </section>
     <section class="panel">
-      <h3>役割編集</h3>
-      ${renderRoleForm(userPokemon, state)}
-    </section>
-    <section class="panel">
-      <h3>登録内容編集</h3>
-      ${renderEditForm(userPokemon, state)}
-    </section>
-    <section class="panel">
       <h3>基本情報</h3>
       <div class="detail-grid">
         <div class="detail-item"><span>得意</span>${escapeHtml(mapper.lookupName("tblSpecialty", mapper.getValue(species, "specialtyId"), "未設定"))}</div>
@@ -362,10 +431,18 @@ function renderUserPokemonDetail(userPokemon, state) {
         ${renderSubSkillListItem("Lv70", vm.subSkills.level70, state)}
         ${renderSubSkillListItem("Lv80", vm.subSkills.level80, state)}
       </ul>
+    </section>
+    <details class="panel fold-panel">
+      <summary>登録内容編集</summary>
+      ${renderEditForm(userPokemon, state)}
+    </details>
+    <details class="panel fold-panel">
+      <summary>役割編集</summary>
+      ${renderRoleForm(userPokemon, state)}
       <div class="button-row" style="margin-top: 12px;">
         <button id="deleteSelected" class="danger-button" type="button">削除</button>
       </div>
-    </section>
+    </details>
   `;
 }
 
@@ -382,9 +459,7 @@ function renderEditForm(userPokemon, state) {
   return `
     <form id="editPokemonForm" class="form-grid">
       <label>種族
-        <select id="editSpecies" class="select" name="pokemonId" required>
-          ${pokemonRows.map((row) => option(mapper.pokemonId(row), `${mapper.pokemonDisplayName(row)} / No.${mapper.getValue(row, "dexNo", "-")}`, userPokemon.pokemonId)).join("")}
-        </select>
+        ${renderSpeciesPicker("edit", pokemonRows, mapper, userPokemon.pokemonId)}
       </label>
       <label>ニックネーム
         <input class="input" name="nickname" value="${escapeHtml(userPokemon.nickname || "")}" placeholder="未入力なら連番表示">
@@ -446,12 +521,13 @@ function pokemonIngredientOptions(state, pokemonId, selectedId, fallbackKey) {
 
 function renderDetailPage(userPokemon, state) {
   return `
+    <nav class="breadcrumb">個体 ＞ ${escapeHtml(displayUserPokemonName(userPokemon, state))}</nav>
     <section class="page-head">
       <div>
         <h2>個体詳細</h2>
         <p>登録内容と役割を確認・編集します。</p>
       </div>
-      <button class="secondary-button" type="button" data-back-to-pokemon-list>一覧へ戻る</button>
+      <button class="secondary-button fixed-back-button" type="button" data-back-to-pokemon-list>一覧へ戻る</button>
     </section>
     ${renderUserPokemonDetail(userPokemon, state)}
   `;
@@ -459,13 +535,19 @@ function renderDetailPage(userPokemon, state) {
 
 function bindDetailEvents(state, actions) {
   document.querySelector("[data-back-to-pokemon-list]")?.addEventListener("click", () => {
-    state.pokemonDetailOpen = false;
-    renderPokemonPage({ state, view: document.querySelector("#view"), actions });
+    actions.backToPokemonList();
   });
   document.querySelector("#editPokemonForm")?.addEventListener("submit", (event) => handleEditPokemon(event, state, actions));
-  document.querySelector("#editSpecies")?.addEventListener("change", () => fillEditSpeciesDefaults(state));
   document.querySelector("#roleForm")?.addEventListener("submit", (event) => handleRoleSave(event, state, actions));
   document.querySelector("#deleteSelected")?.addEventListener("click", () => handleDeleteSelected(state, actions));
+}
+
+function bindDirtyTracking() {
+  document.querySelectorAll("form").forEach((form) => {
+    form.dataset.dirty = "false";
+    form.addEventListener("input", () => { form.dataset.dirty = "true"; });
+    form.addEventListener("change", () => { form.dataset.dirty = "true"; });
+  });
 }
 
 function renderRoleForm(userPokemon, state) {

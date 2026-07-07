@@ -21,7 +21,7 @@ import { renderTodoPage } from "./pages/TodoPage.js";
 import { renderRolePage } from "./pages/RolePage.js";
 import { renderUnsetListPage } from "./pages/UnsetListPage.js";
 
-const APP_VERSION = "1.0.1";
+const APP_VERSION = "1.0.2";
 
 const state = {
   route: "home",
@@ -42,10 +42,13 @@ const state = {
   todoCandidates: [],
   todos: getEmptyTodos(),
   selectedIslandSleepType: null,
+  islandTypeSelections: {},
   selectedDexId: null,
   dexDetailOpen: false,
   selectedUserPokemonId: null,
   pokemonDetailOpen: false,
+  scrollPositions: {},
+  registerPrefill: null,
   filters: {
     dexQuery: "",
     dexSpecialty: "ALL",
@@ -76,6 +79,12 @@ const actions = {
   resetUserData,
   setNotice,
   notify,
+  confirmDiscardChanges,
+  openDexDetail,
+  openPokemonDetail,
+  backToDexList,
+  backToPokemonList,
+  backToMenu,
   recalculateRoleProgress,
   rebuildTodoCandidates,
   regenerateTodos,
@@ -96,6 +105,57 @@ function setRoute(route) {
     button.classList.toggle("active", button.dataset.route === activeTabRoute);
   });
   render();
+  if (!state.restoreScrollKey) {
+    window.scrollTo({ top: 0 });
+  }
+}
+
+function confirmDiscardChanges() {
+  const hasDirtyForm = Boolean(document.querySelector("[data-dirty='true']"));
+  if (!hasDirtyForm) return true;
+  return window.confirm("保存していない変更があります。\nこのまま戻ると変更は保存されません。\n戻りますか？");
+}
+
+function rememberScroll(key) {
+  state.scrollPositions[key] = window.scrollY || 0;
+}
+
+function restoreScroll(key) {
+  const top = state.scrollPositions[key] || 0;
+  window.requestAnimationFrame(() => window.scrollTo({ top }));
+}
+
+function openDexDetail(pokemonId) {
+  rememberScroll("dex");
+  state.selectedDexId = String(pokemonId);
+  state.dexDetailOpen = true;
+  setRoute("dex");
+}
+
+function openPokemonDetail(userPokemonId) {
+  rememberScroll("pokemon");
+  state.selectedUserPokemonId = userPokemonId;
+  state.pokemonDetailOpen = true;
+  setRoute("pokemon");
+}
+
+function backToDexList() {
+  if (!confirmDiscardChanges()) return;
+  state.dexDetailOpen = false;
+  setRoute("dex");
+  restoreScroll("dex");
+}
+
+function backToPokemonList() {
+  if (!confirmDiscardChanges()) return;
+  state.pokemonDetailOpen = false;
+  setRoute("pokemon");
+  restoreScroll("pokemon");
+}
+
+function backToMenu() {
+  if (!confirmDiscardChanges()) return;
+  setRoute("menu");
 }
 
 function notify(message) {
@@ -114,15 +174,11 @@ function openIslandSleepType(islandSleepType) {
 }
 
 function openDexPokemon(pokemonId) {
-  state.selectedDexId = String(pokemonId);
-  state.dexDetailOpen = true;
-  setRoute("dex");
+  openDexDetail(pokemonId);
 }
 
 function openUserPokemon(userPokemonId) {
-  state.selectedUserPokemonId = userPokemonId;
-  state.pokemonDetailOpen = true;
-  setRoute("pokemon");
+  openPokemonDetail(userPokemonId);
 }
 
 async function refreshUserPokemon() {
@@ -317,7 +373,14 @@ if ("serviceWorker" in navigator) {
 }
 
 document.querySelectorAll(".tab-button").forEach((button) => {
-  button.addEventListener("click", () => setRoute(button.dataset.route));
+  button.addEventListener("click", () => {
+    if (!confirmDiscardChanges()) return;
+    state.dexDetailOpen = false;
+    state.pokemonDetailOpen = false;
+    state.registerPrefill = null;
+    setRoute(button.dataset.route);
+    window.scrollTo({ top: 0 });
+  });
 });
 
 boot();

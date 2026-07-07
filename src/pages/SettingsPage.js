@@ -5,6 +5,7 @@ import { escapeHtml } from "../utils/html.js";
 export function renderSettingsPage({ state, view, actions }) {
   const sampleGoals = getSampleGoals(state);
   view.innerHTML = `
+    <nav class="breadcrumb">メニュー</nav>
     <section class="page-head">
       <div>
         <h2>メニュー</h2>

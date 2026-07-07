@@ -5,6 +5,7 @@ export function renderHomePage({ state, view, actions }) {
   const todoGroups = buildIslandSleepTypeTodoGroups(state.todos);
 
   view.innerHTML = `
+    <nav class="breadcrumb">ホーム</nav>
     <section class="page-head">
       <div>
         <h2>ホーム</h2>
@@ -36,6 +37,9 @@ export function renderHomePage({ state, view, actions }) {
       });
     });
   });
+  document.querySelectorAll("[data-open-dex-pokemon]").forEach((button) => {
+    button.addEventListener("click", () => actions.openDexDetail(button.dataset.openDexPokemon));
+  });
 }
 
 function renderTodoGroup(group, index) {
@@ -52,21 +56,24 @@ function renderTodoGroup(group, index) {
         <ul class="todo-candidate-list">
           ${group.todos.map((todo) => `
             <li>
-              <span>${escapeHtml(todo.pokemonName ?? "候補未設定")}</span>
-              <span class="chip">${escapeHtml(todo.label ?? "-")}</span>
+              <span>
+                <strong>${escapeHtml(todo.pokemonName ?? "候補未設定")}</strong>
+                <span class="chip">役割: ${escapeHtml(todo.label ?? "-")}</span>
+              </span>
+              <span class="button-row">
+                <button
+                  class="secondary-button"
+                  type="button"
+                  data-island-todo-group
+                  data-island-name="${escapeHtml(group.islandName)}"
+                  data-sleep-type-id="${escapeHtml(group.sleepTypeId)}"
+                  data-sleep-type-name="${escapeHtml(group.sleepTypeName)}"
+                >島で確認</button>
+                ${todo.pokemonId ? `<button class="secondary-button" type="button" data-open-dex-pokemon="${escapeHtml(todo.pokemonId)}">図鑑を見る</button>` : ""}
+              </span>
             </li>
           `).join("")}
         </ul>
-        <div class="button-row">
-          <button
-            class="secondary-button"
-            type="button"
-            data-island-todo-group
-            data-island-name="${escapeHtml(group.islandName)}"
-            data-sleep-type-id="${escapeHtml(group.sleepTypeId)}"
-            data-sleep-type-name="${escapeHtml(group.sleepTypeName)}"
-          >島画面で確認</button>
-        </div>
       </div>
     </details>
   `;

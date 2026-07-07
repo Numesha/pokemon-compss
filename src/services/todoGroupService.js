@@ -60,6 +60,52 @@ export function buildCurrentForcesForIslandSleepType({ mapper, userPokemon, role
     .sort((a, b) => `${a.displayName}:${a.level}`.localeCompare(`${b.displayName}:${b.level}`, "ja"));
 }
 
+export function buildCurrentForcesForIslandTypes({ mapper, userPokemon, roleAssignments, typeIds, displayName }) {
+  const targetTypes = new Set((typeIds || []).flatMap((typeId) => {
+    const typeName = mapper.lookupName("tblType", typeId, typeId);
+    return [String(typeId), String(typeName)];
+  }));
+
+  return userPokemon
+    .filter((item) => {
+      const species = mapper.pokemonById(item.pokemonId);
+      if (!species) return false;
+      const typeId = mapper.getValue(species, "typeId", "NONE");
+      const typeName = mapper.lookupName("tblType", typeId, typeId);
+      return targetTypes.has(String(typeId)) || targetTypes.has(String(typeName));
+    })
+    .map((item) => ({
+      userPokemonId: item.userPokemonId,
+      pokemonId: item.pokemonId,
+      displayName: displayName(item),
+      level: item.level,
+      trainingStatus: item.trainingStatus,
+      roles: activeRoleLabels(item, roleAssignments, mapper),
+    }))
+    .filter((item) => item.roles.length > 0)
+    .sort((a, b) => `${a.displayName}:${a.level}`.localeCompare(`${b.displayName}:${b.level}`, "ja"));
+}
+
+export function favoriteTypeIdsForIsland(mapper, islandName, selectedTypeIds = []) {
+  const island = mapper.table("tblIsland").find((row) => String(row.名前 ?? row.name) === String(islandName));
+  if (!island) return selectedTypeIds;
+  if ((island.FavoriteTypeMode ?? "") === "RANDOM") return selectedTypeIds;
+  const islandId = mapper.rowId(island);
+  return mapper.table("tblIslandFavoriteType")
+    .filter((row) => String(row["島ID"] ?? row.islandId) === String(islandId))
+    .map((row) => row["タイプID"] ?? row.typeId)
+    .filter(Boolean);
+}
+
+export function appearingPokemonForIsland(mapper, islandName) {
+  return mapper.table("tblPokemonIsland")
+    .filter((row) => String(row["島名"] ?? row.islandName ?? row["島ID"] ?? "") === String(islandName))
+    .map((row) => mapper.pokemonById(row["内部ID"] ?? row.pokemonId))
+    .filter(Boolean)
+    .filter((row, index, rows) => rows.findIndex((item) => mapper.pokemonId(item) === mapper.pokemonId(row)) === index)
+    .sort((a, b) => Number(mapper.getValue(a, "dexNo", 0)) - Number(mapper.getValue(b, "dexNo", 0)));
+}
+
 function islandSleepTypeKey({ islandName, sleepTypeId, sleepTypeName }) {
   return `${islandName}:${sleepTypeId}:${sleepTypeName}`;
 }

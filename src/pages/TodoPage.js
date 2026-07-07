@@ -1,15 +1,17 @@
 import { escapeHtml } from "../utils/html.js";
 
-export function renderTodoPage({ state, view }) {
+export function renderTodoPage({ state, view, actions }) {
   const todos = sortTodos(state.todos);
 
   view.innerHTML = `
+    <nav class="breadcrumb">ToDo</nav>
     <section class="page-head">
       <div>
         <h2>ToDo</h2>
         <p>目標未達の役割に対して、厳選候補の種族と出現条件を確認します。</p>
       </div>
       <span class="badge">${todos.length}件</span>
+      <button class="secondary-button fixed-back-button" type="button" data-back-to-menu>一覧へ戻る</button>
     </section>
     ${
       todos.length
@@ -17,6 +19,10 @@ export function renderTodoPage({ state, view }) {
         : `<section class="empty-state">現在の条件で生成されたToDoはありません。</section>`
     }
   `;
+  document.querySelector("[data-back-to-menu]")?.addEventListener("click", () => actions.backToMenu());
+  document.querySelectorAll("[data-open-dex-pokemon]").forEach((button) => {
+    button.addEventListener("click", () => actions.openDexDetail(button.dataset.openDexPokemon));
+  });
 }
 
 function sortTodos(todos) {
@@ -30,7 +36,7 @@ function renderTodoCard(todo) {
     <article class="panel todo-card">
       <div class="todo-card-head">
         <div>
-          <h3>${escapeHtml(todo.pokemonName ?? "候補未設定")}</h3>
+          <h3>${todo.pokemonId ? `<button class="secondary-button candidate-button" type="button" data-open-dex-pokemon="${escapeHtml(todo.pokemonId)}">${escapeHtml(todo.pokemonName ?? "候補未設定")}</button>` : escapeHtml(todo.pokemonName ?? "候補未設定")}</h3>
           <p class="muted">${escapeHtml(todoLabel(todo))}</p>
         </div>
         <span class="badge">${escapeHtml(statusLabel(todo.status))}</span>
