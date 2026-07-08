@@ -197,6 +197,7 @@ function bindSpeciesPickers(state) {
 
     input.addEventListener("input", () => {
       hidden.value = "";
+      if (id === "register") resetRegisterIngredientOptions(state);
       renderCandidates();
     });
     input.addEventListener("focus", renderCandidates);
@@ -224,9 +225,23 @@ function fillSpeciesDefaults(state) {
   const pokemonId = document.querySelector("[data-species-picker-id='register']").value;
   const selected = mapper.pokemonById(pokemonId);
   if (!selected) return;
-  document.querySelector("#ingredientLv1").innerHTML = pokemonIngredientOptions(state, pokemonId, mapper.getValue(selected, "ingredientA"), "ingredientA");
-  document.querySelector("#ingredientLv30").innerHTML = pokemonIngredientOptions(state, pokemonId, mapper.getValue(selected, "ingredientB"), "ingredientB");
-  document.querySelector("#ingredientLv60").innerHTML = pokemonIngredientOptions(state, pokemonId, mapper.getValue(selected, "ingredientC"), "ingredientC");
+  setRegisterIngredientOptions(state, pokemonId);
+}
+
+function resetRegisterIngredientOptions(state) {
+  setRegisterIngredientOptions(state, "");
+}
+
+function setRegisterIngredientOptions(state, pokemonId) {
+  const mapper = state.mapper;
+  const selected = mapper.pokemonById(pokemonId);
+  const lv1 = document.querySelector("#ingredientLv1");
+  const lv30 = document.querySelector("#ingredientLv30");
+  const lv60 = document.querySelector("#ingredientLv60");
+  if (!lv1 || !lv30 || !lv60) return;
+  lv1.innerHTML = pokemonIngredientOptions(state, pokemonId, selected ? mapper.getValue(selected, "ingredientA") : "NONE", "ingredientA");
+  lv30.innerHTML = pokemonIngredientOptions(state, pokemonId, selected ? mapper.getValue(selected, "ingredientB") : "NONE", "ingredientB");
+  lv60.innerHTML = pokemonIngredientOptions(state, pokemonId, selected ? mapper.getValue(selected, "ingredientC") : "NONE", "ingredientC");
 }
 
 function fillEditSpeciesDefaults(state) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "pokesuri-compass-v1.0.3";
+const CACHE_NAME = "pokesuri-compass-v1.0.3-fix1";
 
 const APP_SHELL = [
   "./",
